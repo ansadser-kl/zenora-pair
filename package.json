@@ -1,0 +1,16 @@
+{
+  "name": "hermit-session-site",
+  "version": "1.0.0",
+  "description": "Small session site for Hermit-md: link WhatsApp with a pairing code, get a SESSION_ID",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "baileys": "latest",
+    "pg": "^8.11.0"
+  }
+}
