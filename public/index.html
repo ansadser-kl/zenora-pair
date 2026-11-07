@@ -9,44 +9,72 @@
     color-scheme: dark;
     --bg:#000000; --card:#0d0d0d; --line:#2a0a0a; --line2:#3a1010;
     --text:#f5f5f5; --mute:#9a8f8f;
-    --red:#e21b1b; --red-dim:#7a0f0f; --red-glow: rgba(226,27,27,.35);
+    --red:#e21b1b; --red-glow: rgba(226,27,27,.35);
   }
   * { box-sizing: border-box; }
+  html, body { height:100%; }
   body {
     margin:0; background:var(--bg); color:var(--text);
     font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display:flex; justify-content:center; padding:24px 14px 40px;
-    background-image: radial-gradient(circle at 50% 0%, rgba(226,27,27,.08), transparent 55%);
+    display:flex; justify-content:center; align-items:flex-start; padding:24px 14px 40px;
+    background-image: radial-gradient(circle at 50% 0%, rgba(226,27,27,.10), transparent 55%);
+    overflow-x:hidden;
   }
   main { width:100%; max-width:440px; }
+
+  /* ---------- splash ---------- */
+  #splash {
+    position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#000; transition:opacity .6s ease, visibility .6s;
+  }
+  #splash.gone { opacity:0; visibility:hidden; pointer-events:none; }
+  #splash .mark { width:64px; height:64px; border-radius:50%; background:radial-gradient(circle, var(--red), #4a0404 70%); box-shadow:0 0 40px 6px var(--red-glow); margin-bottom:22px; animation:pulse 1.8s ease-in-out infinite; }
+  #splash .lines { text-align:center; }
+  #splash .l1 { font-size:13px; letter-spacing:6px; color:var(--mute); margin-bottom:10px; opacity:0; animation:rise .6s ease forwards .15s; }
+  #splash .l2 { font-size:32px; font-weight:900; letter-spacing:3px; opacity:0; animation:rise .7s ease forwards .45s; }
+  #splash .l2 span { color:var(--red); text-shadow:0 0 22px var(--red-glow); }
+  @keyframes rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.14); opacity:.75; } }
+
+  /* ---------- shared ---------- */
   .brand { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
   .brand .dot { width:10px; height:10px; border-radius:50%; background:var(--red); box-shadow:0 0 10px 2px var(--red-glow); }
   .brand span { font-weight:800; letter-spacing:3px; font-size:14px; color:var(--red); }
   h1 { font-size:22px; margin:4px 0 4px; }
   p.sub { color:var(--mute); margin:0 0 20px; font-size:14px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px; box-shadow:0 0 0 1px rgba(226,27,27,.04), 0 10px 30px -18px rgba(226,27,27,.5); }
+  .step { animation:fadein .35s ease; }
+  @keyframes fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .card {
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px;
+    box-shadow:0 0 0 1px rgba(226,27,27,.04), 0 10px 30px -18px rgba(226,27,27,.5);
+    transition:box-shadow .3s ease, border-color .3s ease;
+  }
   label { display:block; font-size:13px; color:var(--mute); margin:0 0 6px; }
   input, select {
     width:100%; padding:13px 14px; border-radius:10px; border:1px solid var(--line2);
-    background:#0a0a0a; color:var(--text); font-size:17px;
+    background:#0a0a0a; color:var(--text); font-size:17px; transition:border-color .2s ease, box-shadow .2s ease;
   }
   select { appearance:none; -webkit-appearance:none; background-image:linear-gradient(45deg, transparent 50%, var(--red) 50%), linear-gradient(135deg, var(--red) 50%, transparent 50%); background-position: calc(100% - 20px) center, calc(100% - 15px) center; background-size:5px 5px, 5px 5px; background-repeat:no-repeat; }
-  input:focus, select:focus { outline:2px solid var(--red); border-color:transparent; }
-  .numrow { display:flex; gap:8px; }
-  .numrow select { flex:0 0 118px; }
-  .numrow input { flex:1; }
+  input:focus, select:focus { outline:none; border-color:var(--red); box-shadow:0 0 0 3px var(--red-glow); }
+  .numrow { display:grid; grid-template-columns:118px 1fr; gap:8px; }
   button {
     width:100%; padding:14px; margin-top:14px; border:0; border-radius:10px;
     background:var(--red); color:#0a0000; font-size:16px; font-weight:800; letter-spacing:.3px; cursor:pointer;
-    box-shadow:0 8px 20px -8px var(--red-glow);
+    box-shadow:0 8px 20px -8px var(--red-glow); transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
   }
+  button:active { transform:scale(.98); }
   button.ghost { background:transparent; color:var(--text); border:1px solid var(--line2); box-shadow:none; margin-top:10px; }
-  button:disabled { opacity:.55; cursor:default; box-shadow:none; }
+  button:disabled { opacity:.5; cursor:default; box-shadow:none; }
+  .choices { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .choices button { margin-top:0; padding:20px 10px; }
+  .choices small { display:block; font-weight:500; opacity:.75; font-size:11px; margin-top:4px; }
   .code {
     font:700 34px/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing:4px; text-align:center;
     padding:16px 8px; background:#0a0a0a; border:1px dashed var(--red); border-radius:12px; margin:6px 0 12px;
     color:var(--red); user-select:all;
   }
+  .qrwrap { display:flex; justify-content:center; margin:6px 0 14px; }
+  .qrwrap img { width:220px; height:220px; border-radius:12px; border:1px solid var(--line2); background:#fff; padding:10px; }
   ol { margin:0; padding-left:20px; color:var(--mute); font-size:14px; }
   ol b { color:var(--text); }
   .err { color:var(--red); font-size:14px; margin-top:10px; min-height:1px; }
@@ -59,56 +87,99 @@
   .ok { color:var(--red); font-weight:700; }
   small { color:var(--mute); }
   footer { text-align:center; color:var(--line2); font-size:12px; margin-top:18px; letter-spacing:2px; }
+  .spin { width:34px; height:34px; border-radius:50%; border:3px solid var(--line2); border-top-color:var(--red); margin:10px auto 14px; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
+
+<div id="splash">
+  <div class="mark"></div>
+  <div class="lines">
+    <div class="l1">WELCOME</div>
+    <div class="l2">ZENORA<span>-MD</span></div>
+  </div>
+</div>
+
 <main>
   <div class="brand"><span class="dot"></span><span>ZENORA</span></div>
   <h1>Link your WhatsApp</h1>
   <p class="sub">Get a session for your bot in under a minute.</p>
 
-  <!-- step 1 -->
-  <section class="card" id="step1">
-    <div id="keyRow" class="row hidden" style="margin-top:0;margin-bottom:12px">
-      <label for="key">Access key</label>
-      <input id="key" type="password" autocomplete="off">
+  <div id="keyRow" class="row hidden" style="margin-top:0;margin-bottom:14px">
+    <label for="key">Access key</label>
+    <input id="key" type="password" autocomplete="off">
+  </div>
+
+  <!-- home: choose QR or pairing code -->
+  <section class="card step hidden" id="home">
+    <button id="getSession">GET SESSION</button>
+  </section>
+
+  <section class="card step hidden" id="choose">
+    <label>Choose how to link</label>
+    <div class="choices">
+      <button id="chooseQr">QR<small>Scan from another device</small></button>
+      <button id="choosePair">PAIR<small>Code for this number</small></button>
     </div>
+    <div class="err" id="errChoose"></div>
+  </section>
+
+  <!-- pair: number entry -->
+  <section class="card step hidden" id="numberStep">
     <label for="number">WhatsApp number</label>
     <div class="numrow">
       <select id="cc" aria-label="Country code"></select>
       <input id="number" type="tel" inputmode="numeric" placeholder="98765 43210" autocomplete="off">
     </div>
-    <button id="go">Get pairing code</button>
+    <button id="getCode">Get pairing code</button>
+    <button class="ghost" id="backFromNumber">Back</button>
     <div class="err" id="err1"></div>
   </section>
 
-  <!-- step 2 -->
-  <section class="card hidden" id="step2">
+  <!-- pair: code shown -->
+  <section class="card step hidden" id="codeStep">
     <label>Your pairing code</label>
     <div class="code" id="code">----</div>
-    <ol>
+    <button class="ghost" id="copyCode">Copy code</button>
+    <ol style="margin-top:14px">
       <li>Open <b>WhatsApp</b> on your phone</li>
       <li><b>Settings &gt; Linked devices &gt; Link a device</b></li>
       <li>Tap <b>Link with phone number instead</b></li>
       <li>Type the code above</li>
     </ol>
-    <p class="sub" style="margin:12px 0 0" id="wait">Waiting for you to enter the code...</p>
+    <p class="sub" style="margin:12px 0 0" id="waitCode">Waiting for you to enter the code...</p>
     <div class="err" id="err2"></div>
-    <button class="ghost" id="cancel">Start again</button>
+    <button class="ghost" id="cancelCode">Start again</button>
   </section>
 
-  <!-- step 3 -->
-  <section class="card hidden" id="step3">
+  <!-- qr: code shown -->
+  <section class="card step hidden" id="qrStep">
+    <label>Scan this QR code</label>
+    <div class="qrwrap"><img id="qrImg" alt="QR code" width="220" height="220"></div>
+    <ol>
+      <li>Open <b>WhatsApp</b> on your phone</li>
+      <li><b>Settings &gt; Linked devices &gt; Link a device</b></li>
+      <li>Point your camera at the QR code above</li>
+    </ol>
+    <p class="sub" style="margin:12px 0 0" id="waitQr">Waiting for you to scan...</p>
+    <div class="err" id="err3"></div>
+    <button class="ghost" id="cancelQr">Start again</button>
+  </section>
+
+  <!-- qr/pair: loading while requesting -->
+  <section class="card step hidden" id="loadingStep">
+    <div class="spin"></div>
+    <p class="sub" style="text-align:center;margin:0">Connecting...</p>
+  </section>
+
+  <!-- linked -->
+  <section class="card step hidden" id="doneStep">
     <p class="ok" style="margin:0 0 8px">WhatsApp linked.</p>
     <p class="sub" style="margin:0 0 10px">Your SESSION_ID was also sent to your own WhatsApp chat.</p>
     <label>Your SESSION_ID</label>
     <div class="box" id="sid"></div>
     <button id="copySid">Copy SESSION_ID</button>
-    <div class="row">
-      <label>Put these in your bot's environment variables</label>
-      <div class="box" id="env"></div>
-      <button class="ghost" id="copyEnv">Copy both lines</button>
-    </div>
     <p class="sub" style="margin-top:14px"><small>Keep the SESSION_ID secret: anyone who has it can use your WhatsApp login. Do not open WhatsApp Web with this login while the bot runs.</small></p>
     <button class="ghost" id="again">Link another number</button>
   </section>
@@ -119,7 +190,10 @@
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var token = null, timer = null, needKey = false, sessionId = '';
+  var STEPS = ['home', 'choose', 'numberStep', 'codeStep', 'qrStep', 'loadingStep', 'doneStep'];
+  var token = null, timer = null, needKey = false, sessionId = '', currentMode = 'pair';
+
+  function show(step) { STEPS.forEach(function (s) { $(s).classList.toggle('hidden', s !== step); }); }
 
   // compact list of common dial codes; value = digits only (no +)
   var CODES = [
@@ -141,9 +215,12 @@
     sel.value = '91';
   })();
 
-  function show(step) {
-    ['step1', 'step2', 'step3'].forEach(function (s) { $(s).classList.toggle('hidden', s !== step); });
-  }
+  // ---- splash ----
+  setTimeout(function () {
+    $('splash').classList.add('gone');
+    show('home');
+  }, 2200);
+
   function fmt(code) { code = String(code || ''); return code.length === 8 ? code.slice(0, 4) + '-' + code.slice(4) : code; }
   function copy(text, btn) {
     var done = function () { var old = btn.textContent; btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = old; }, 1500); };
@@ -155,47 +232,75 @@
   }
   function reset() {
     clearInterval(timer); token = null; sessionStorage.removeItem('zenora-token');
-    $('go').disabled = false; $('go').textContent = 'Get pairing code'; $('err1').textContent = ''; $('err2').textContent = '';
-    show('step1');
+    $('err1').textContent = ''; $('err2').textContent = ''; $('err3').textContent = ''; $('errChoose').textContent = '';
+    $('getCode').disabled = false; $('getCode').textContent = 'Get pairing code';
+    show('choose');
   }
   function linked(id) {
     clearInterval(timer); sessionId = id;
     $('sid').textContent = id;
-    $('env').textContent = 'SESSION_ID=' + id + '\nSESSION_API=' + location.origin + '/session';
-    show('step3');
+    show('doneStep');
   }
   function poll() {
     fetch('/api/status?token=' + encodeURIComponent(token), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
       if (d.state === 'linked') return linked(d.sessionId);
-      if (d.state === 'code') { $('code').textContent = fmt(d.code); show('step2'); }
+      if (d.state === 'code' && currentMode === 'pair') { $('code').textContent = fmt(d.code); show('codeStep'); }
+      if (d.state === 'qr' && currentMode === 'qr') { $('qrImg').src = d.qr; show('qrStep'); }
       if (d.state === 'failed' || d.state === 'unknown') {
-        clearInterval(timer); $('err2').textContent = d.error || d.message || 'Failed. Please start again.'; $('wait').textContent = '';
+        clearInterval(timer);
+        var msg = d.error || d.message || 'Failed. Please try again.';
+        if (currentMode === 'qr') { $('err3').textContent = msg; $('waitQr').textContent = ''; }
+        else { $('err2').textContent = msg; $('waitCode').textContent = ''; }
       }
     }).catch(function () { /* try again on the next tick */ });
   }
   function begin(t) { token = t; sessionStorage.setItem('zenora-token', t); clearInterval(timer); timer = setInterval(poll, 2000); poll(); }
 
-  $('go').onclick = function () {
+  function startLink(mode, number) {
+    currentMode = mode;
+    show('loadingStep');
+    fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: mode, number: number, key: $('key').value }) })
+      .then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.status) {
+          if (mode === 'qr') { $('errChoose').textContent = d.message || 'Failed'; show('choose'); }
+          else { $('err1').textContent = d.message || 'Failed'; show('numberStep'); }
+          return;
+        }
+        if (mode === 'qr') { $('qrImg').src = d.qr; $('waitQr').textContent = 'Waiting for you to scan...'; $('err3').textContent = ''; show('qrStep'); }
+        else { $('code').textContent = fmt(d.code); $('waitCode').textContent = 'Waiting for you to enter the code...'; $('err2').textContent = ''; show('codeStep'); }
+        begin(d.token);
+      }).catch(function () {
+        if (mode === 'qr') { $('errChoose').textContent = 'Could not reach the server.'; show('choose'); }
+        else { $('err1').textContent = 'Could not reach the server.'; show('numberStep'); }
+      });
+  }
+
+  $('getSession').onclick = function () { show('choose'); };
+  $('chooseQr').onclick = function () { startLink('qr'); };
+  $('choosePair').onclick = function () { currentMode = 'pair'; $('err1').textContent = ''; show('numberStep'); };
+  $('backFromNumber').onclick = function () { show('choose'); };
+
+  $('getCode').onclick = function () {
     var cc = $('cc').value.replace(/\D/g, '');
     var number = cc + $('number').value.replace(/\D/g, '');
     $('err1').textContent = '';
     if (number.length < 7) { $('err1').textContent = 'Enter your number without the leading 0'; return; }
-    $('go').disabled = true; $('go').textContent = 'Getting code...';
-    fetch('/api/pair', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ number: number, key: $('key').value }) })
-      .then(function (r) { return r.json(); }).then(function (d) {
-        if (!d.status) { $('err1').textContent = d.message || 'Failed'; $('go').disabled = false; $('go').textContent = 'Get pairing code'; return; }
-        $('code').textContent = fmt(d.code); $('wait').textContent = 'Waiting for you to enter the code...'; $('err2').textContent = '';
-        show('step2'); begin(d.token);
-      }).catch(function () { $('err1').textContent = 'Could not reach the server.'; $('go').disabled = false; $('go').textContent = 'Get pairing code'; });
+    $('getCode').disabled = true; $('getCode').textContent = 'Getting code...';
+    startLink('pair', number);
   };
-  $('cancel').onclick = reset;
+  $('cancelCode').onclick = reset;
+  $('cancelQr').onclick = reset;
   $('again').onclick = reset;
+  $('copyCode').onclick = function () { copy($('code').textContent.replace('-', ''), $('copyCode')); };
   $('copySid').onclick = function () { copy(sessionId, $('copySid')); };
-  $('copyEnv').onclick = function () { copy($('env').textContent, $('copyEnv')); };
 
   fetch('/api/config').then(function (r) { return r.json(); }).then(function (c) { needKey = !!c.needKey; $('keyRow').classList.toggle('hidden', !needKey); }).catch(function () {});
   var saved = sessionStorage.getItem('zenora-token');
-  if (saved) { show('step2'); begin(saved); }
+  if (saved) {
+    $('splash').classList.add('gone');
+    token = saved; currentMode = 'pair';
+    show('loadingStep'); timer = setInterval(poll, 2000); poll();
+  }
 })();
 </script>
 </body>
