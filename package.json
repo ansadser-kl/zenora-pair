@@ -1,7 +1,7 @@
 {
-  "name": "hermit-session-site",
+  "name": "zenora-session-site",
   "version": "1.0.0",
-  "description": "Small session site for Hermit-md: link WhatsApp with a pairing code, get a SESSION_ID",
+  "description": "ZENORA session site: link WhatsApp with a pairing code or QR code, get a SESSION_ID",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "baileys": "latest",
-    "pg": "^8.11.0"
+    "pg": "^8.11.0",
+    "qrcode": "^1.5.3"
   }
 }

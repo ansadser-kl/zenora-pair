@@ -1,25 +1,26 @@
 'use strict';
 /*
- * ZENORA session site (no dependencies except baileys + pg).
+ * ZENORA session site (dependencies: baileys, pg, qrcode).
  *
- *   /                       the page: enter number -> pairing code -> SESSION_ID
- *   POST /api/pair          { number, key? }  -> { token, code }
- *   GET  /api/status?token  -> { state: starting | code | linked | failed, code?, sessionId?, error? }
- *   GET  /session?id=...    -> { status: true, data: { creds: {...}, "pre-key-1": {...} } }   (what the bot downloads)
+ *   /                        the page: GET SESSION -> QR or pairing code -> SESSION_ID
+ *   POST /api/start          { mode: 'qr'|'pair', number?, key? }  -> { token, code? , qr? }
+ *   GET  /api/status?token   -> { state: starting|code|qr|linked|failed, code?, qr?, sessionId?, error? }
+ *   GET  /session?id=...     -> { status: true, data: { creds: {...}, "pre-key-1": {...} } }   (what the bot downloads)
  *   GET  /health
  */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 const { createStore } = require('./lib/store');
-const { startPairing } = require('./lib/pairing');
+const { startPairing, startQrLogin } = require('./lib/pairing');
 
 const PORT = Number(process.env.PORT) || 3000;
 const ID_PREFIX = process.env.ID_PREFIX !== undefined ? process.env.ID_PREFIX : 'ZENORA~';
 const ACCESS_KEY = process.env.ACCESS_KEY || '';                       // optional: only people with the key can link a number
 const MAX_ACTIVE = Number(process.env.MAX_ACTIVE) || 5;                // logins running at the same time
-const PAIR_PER_HOUR = Number(process.env.PAIR_PER_HOUR) || 5;          // pairing requests per IP per hour
+const PAIR_PER_HOUR = Number(process.env.PAIR_PER_HOUR) || 5;          // link requests per IP per hour
 const SESSION_PER_MIN = Number(process.env.SESSION_PER_MIN) || 60;     // /session requests per IP per minute
 const CODE_WAIT_MS = Number(process.env.CODE_WAIT_MS) || 25000;
 const OPEN_JOB_TTL = 4 * 60 * 1000;                                    // a login nobody finishes is dropped after 4 minutes
@@ -27,6 +28,7 @@ const DONE_JOB_TTL = 15 * 60 * 1000;                                   // a fini
 
 const store = createStore();
 const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const jobs = new Map();       // token -> job
 const pairHits = new Map();   // ip -> [timestamps]
@@ -36,21 +38,9 @@ const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const safeEqual = (a, b) => crypto.timingSafeEqual(sha(a), sha(b));
 const clientIp = (req) => String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
 
-function siteBaseUrl(req) {
-	const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-	const host = req.headers['x-forwarded-host'] || req.headers.host;
-	return proto + '://' + host;
-}
-
+// the WhatsApp message sent to the user's own chat once linked — just the SESSION_ID, nothing else
 function buildSessionMessage(id) {
-	return [
-		'✅ *WhatsApp linked*',
-		'',
-		'SESSION_ID:',
-		id,
-		'',
-		'Keep this secret — anyone who has it can use this WhatsApp login.',
-	].join('\n');
+	return id;
 }
 
 function allow(map, ip, limit, windowMs) {
@@ -88,7 +78,7 @@ function readJson(req, limit = 4096) {
 	});
 }
 
-const activeJobs = () => [...jobs.values()].filter((j) => j.state === 'starting' || j.state === 'code').length;
+const activeJobs = () => [...jobs.values()].filter((j) => j.state === 'starting' || j.state === 'code' || j.state === 'qr').length;
 
 function dropJob(token) {
 	const job = jobs.get(token);
@@ -108,15 +98,19 @@ setInterval(() => {
 	}
 }, 30000).unref();
 
-async function handlePair(req, res) {
+async function handleStart(req, res) {
 	let body;
 	try { body = await readJson(req); } catch (e) { return send(res, 400, { status: false, message: 'Bad request' }); }
 
 	if (ACCESS_KEY && !safeEqual(body.key || '', ACCESS_KEY)) return send(res, 401, { status: false, message: 'Wrong access key' });
 
-	const number = String(body.number || '').replace(/\D/g, '');
-	if (number.length < 7 || number.length > 15) {
-		return send(res, 400, { status: false, message: 'Enter your WhatsApp number with country code (digits only, no +).' });
+	const mode = body.mode === 'qr' ? 'qr' : 'pair';
+	let number = '';
+	if (mode === 'pair') {
+		number = String(body.number || '').replace(/\D/g, '');
+		if (number.length < 7 || number.length > 15) {
+			return send(res, 400, { status: false, message: 'Enter your WhatsApp number with country code (digits only, no +).' });
+		}
 	}
 	if (!allow(pairHits, clientIp(req), PAIR_PER_HOUR, 3600 * 1000)) {
 		return send(res, 429, { status: false, message: 'Too many tries. Please wait a while and try again.' });
@@ -124,11 +118,19 @@ async function handlePair(req, res) {
 	if (activeJobs() >= MAX_ACTIVE) return send(res, 503, { status: false, message: 'Server is busy, please try again in a minute.' });
 
 	const token = crypto.randomBytes(16).toString('hex');
-	const job = { state: 'starting', code: null, sessionId: null, error: null, created: Date.now(), pairing: null };
+	const job = { mode, state: 'starting', code: null, qr: null, sessionId: null, error: null, created: Date.now(), pairing: null };
 	jobs.set(token, job);
 
-	job.pairing = startPairing(number, {
+	const hooks = {
 		onCode(code) { if (job.state === 'starting' || job.state === 'code') { job.state = 'code'; job.code = code; } },
+		async onQR(qrText) {
+			try {
+				const dataUrl = await QRCode.toDataURL(qrText, { margin: 1, scale: 8 });
+				if (job.state === 'starting' || job.state === 'qr') { job.state = 'qr'; job.qr = dataUrl; }
+			} catch (e) {
+				console.error('[site] could not render QR:', e.message);
+			}
+		},
 		async onLinked(sessionJson) {
 			// errors here are caught by pairing.js, which then calls onFail below with a message for the page
 			const id = ID_PREFIX + crypto.randomBytes(24).toString('base64url');
@@ -139,14 +141,18 @@ async function handlePair(req, res) {
 			return { message: buildSessionMessage(id) };
 		},
 		onFail(message) { if (job.state !== 'linked') { job.state = 'failed'; job.error = message; } },
-	});
+	};
 
-	// wait until the code is ready (or it failed)
+	job.pairing = mode === 'qr' ? startQrLogin(hooks) : startPairing(number, hooks);
+
+	// wait until the code/QR is ready (or it failed)
 	const started = Date.now();
-	while (job.state === 'starting' && Date.now() - started < CODE_WAIT_MS) await new Promise((r) => setTimeout(r, 100));
+	while (job.state === 'starting' && Date.now() - started < CODE_WAIT_MS) await sleep(100);
 
-	if (job.state === 'code' || job.state === 'linked') return send(res, 200, { status: true, token, code: job.code });
-	const message = job.error || 'Could not get a pairing code. Please try again.';
+	if (job.state === 'code') return send(res, 200, { status: true, token, mode, code: job.code });
+	if (job.state === 'qr') return send(res, 200, { status: true, token, mode, qr: job.qr });
+	if (job.state === 'linked') return send(res, 200, { status: true, token, mode, linked: true });
+	const message = job.error || (mode === 'qr' ? 'Could not generate a QR code. Please try again.' : 'Could not get a pairing code. Please try again.');
 	dropJob(token);
 	return send(res, job.error ? 400 : 504, { status: false, message });
 }
@@ -154,7 +160,7 @@ async function handlePair(req, res) {
 function handleStatus(url, res) {
 	const job = jobs.get(url.searchParams.get('token') || '');
 	if (!job) return send(res, 404, { status: false, state: 'unknown', message: 'Not found or expired. Start again.' });
-	return send(res, 200, { status: true, state: job.state, code: job.code, sessionId: job.sessionId, error: job.error });
+	return send(res, 200, { status: true, state: job.state, code: job.code, qr: job.qr, sessionId: job.sessionId, error: job.error });
 }
 
 async function handleSession(req, url, res) {
@@ -180,12 +186,12 @@ const server = http.createServer(async (req, res) => {
 				'content-type': 'text/html; charset=utf-8',
 				'cache-control': 'no-cache',
 				'x-content-type-options': 'nosniff',
-				'content-security-policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+				'content-security-policy': "default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
 			});
 			return res.end(indexHtml);
 		}
 		if (route === 'GET /api/config') return send(res, 200, { needKey: !!ACCESS_KEY });
-		if (route === 'POST /api/pair') return await handlePair(req, res);
+		if (route === 'POST /api/start') return await handleStart(req, res);
 		if (route === 'GET /api/status') return handleStatus(url, res);
 		if (route === 'GET /session') return await handleSession(req, url, res);
 		if (route === 'GET /health') return send(res, 200, { ok: true, storage: store.kind, sessions: await store.count() });
