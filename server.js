@@ -42,16 +42,12 @@ function siteBaseUrl(req) {
 	return proto + '://' + host;
 }
 
-function buildSessionMessage(id, base) {
+function buildSessionMessage(id) {
 	return [
 		'✅ *WhatsApp linked*',
 		'',
 		'SESSION_ID:',
 		id,
-		'',
-		"Put these in your bot's environment:",
-		'SESSION_ID=' + id,
-		'SESSION_API=' + base + '/session',
 		'',
 		'Keep this secret — anyone who has it can use this WhatsApp login.',
 	].join('\n');
@@ -140,7 +136,7 @@ async function handlePair(req, res) {
 			job.sessionId = id;
 			job.state = 'linked';
 			job.created = Date.now();
-			return { message: buildSessionMessage(id, siteBaseUrl(req)) };
+			return { message: buildSessionMessage(id) };
 		},
 		onFail(message) { if (job.state !== 'linked') { job.state = 'failed'; job.error = message; } },
 	});
